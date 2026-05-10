@@ -1,3 +1,12 @@
+import sys
+if sys.platform == 'win32':
+    try:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+    except:
+        pass
+
+# ... rest of your imports
 import tkinter as tk
 from tkinter import messagebox
 import threading
